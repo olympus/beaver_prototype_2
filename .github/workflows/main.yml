@@ -1,0 +1,38 @@
+name: Build Firmware
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Change if you need a different OS
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # Ensures submodules are cloned
+
+      - name: Set Up Build Environment
+        run: |
+          sudo apt update
+          sudo apt install cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
+
+      - name: Build Firmware
+        run: |
+          git submodule update --init --recursive user_modules/lv_binding_micropython
+          make -C ports/rp2 BOARD=RPI_PICO submodules
+          make -C mpy-cross
+          make -j -C ports/rp2 BOARD=RPI_PICO USER_C_MODULES=../../user_modules/lv_binding_micropython/micropython.cmake
+
+      - name: Upload Firmware Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-build
+          path: ports/rp2/build-RPI_PICO/firmware.uf2
